@@ -1,0 +1,22 @@
+{
+  "name": "bot-tele-assistant",
+  "version": "1.0.0",
+  "description": "Telegram Bot Personal Assistant",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.47.0",
+    "axios": "^1.6.8",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mysql2": "^3.9.7",
+    "node-cron": "^3.0.3",
+    "node-telegram-bot-api": "^0.65.1"
+  },
+  "author": "",
+  "license": "ISC"
+}
