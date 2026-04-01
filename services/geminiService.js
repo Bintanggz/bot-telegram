@@ -13,14 +13,15 @@ Tugas Anda adalah memahami maksud dari teks pesan pengguna dan mengembalikannya 
 Kategori intent yang ada:
 1. "task" : Jika pengguna ingin membuat peringatan jadwal/tugas (contoh: ingatkan saya besok makan).
 2. "finance" : Jika pengguna membicarakan uang masuk/keluar atau pengeluaran (contoh: beli bakso 10rb, dapat gaji 5 juta).
-3. "chat" : Jika pengguna menyapa, curhat, bertanya (seperti resep, berita, dll), atau tidak termasuk task/finance (contoh: Hai, tolong resep ayam geprek, cuaca besok).
+3. "note" : Jika pengguna ingin menyimpan catatan/informasi untuk referensi nanti (contoh: catat password wifi Abcd1234, simpan no rekening 123456).
+4. "chat" : Jika pengguna menyapa, curhat, bertanya (seperti resep, berita, dll), atau tidak termasuk task/finance/note (contoh: Hai, tolong resep ayam geprek, cuaca besok).
 
 Pesan Pengguna: "${text}"
 Waktu saat ini (sekarang) adalah: ${new Date().toISOString()}
 
 Kembalikan HANYA format JSON berikut SESUAI dengan intent yang terdeteksi. Kunci utama harus selalu ada:
 {
-  "intent": "task" | "finance" | "chat",
+  "intent": "task" | "finance" | "note" | "chat",
   "task_data": { 
      // HANYA isi jika intent=task, KALAU TIDAK isi null
      "task": "Deksripsi", 
@@ -30,14 +31,23 @@ Kembalikan HANYA format JSON berikut SESUAI dengan intent yang terdeteksi. Kunci
   },
   "finance_data": {
      // HANYA isi jika intent=finance, KALAU TIDAK isi null
-     "amount": 10000, // angka nominal pastikan konversi dari huruf eMisal 10rb=10000
+     "amount": 10000,
      "description": "Beli bakso",
-     "type": "income" | "expense"
+     "type": "income" | "expense",
+     "category": "makan" | "transport" | "belanja" | "hiburan" | "tagihan" | "kesehatan" | "pendidikan" | "gaji" | "freelance" | "investasi" | "lainnya"
+  },
+  "note_data": {
+     // HANYA isi jika intent=note, KALAU TIDAK isi null
+     "content": "Isi catatan yang ingin disimpan"
   },
   "chat_response": "Balasan ramah & cerdas Anda yang sangat natural layaknya ChatGPT. HANYA isi jika intent=chat, kalau tidak isi null"
 }
 
-Peraturan: Asumsi waktu default jadwal adalah 1 jam dari sekarang jika tidak disebut spesifik.
+Peraturan:
+- Asumsi waktu default jadwal adalah 1 jam dari sekarang jika tidak disebut spesifik.
+- Untuk finance, pastikan konversi nominal dari huruf ke angka (misal 10rb=10000, 5jt=5000000).
+- Untuk finance, tentukan kategori yang paling sesuai dari daftar yang tersedia.
+- Untuk note, tangkap SELURUH informasi yang ingin dicatat pengguna.
             `;
 
             // Call Gemini 2.5 Flash model

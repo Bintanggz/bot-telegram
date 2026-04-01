@@ -5,7 +5,7 @@ const weatherService = require('./weatherService');
 const db = require('../config/database');
 
 const initCronJob = (bot) => {
-    // Run every minute
+    // Run every minute — check for due tasks
     cron.schedule('* * * * *', async () => {
         try {
             const pastDueTasks = await Task.findPendingPastDue();
@@ -40,16 +40,20 @@ const initCronJob = (bot) => {
         }
     });
 
-    // Run every day at 06:00
+    // Run every day at 06:00 — morning weather greeting with user's custom location
     cron.schedule('0 6 * * *', async () => {
         try {
-            const weatherMsg = await weatherService.getDailyForecast();
-            const [users] = await db.query('SELECT telegram_id FROM users');
+            const [users] = await db.query('SELECT telegram_id, default_city, default_lat, default_lon FROM users');
             
             for (const u of users) {
                 try {
+                    const city = u.default_city || 'Jakarta';
+                    const lat = u.default_lat || -6.2088;
+                    const lon = u.default_lon || 106.8456;
+                    
+                    const weatherMsg = await weatherService.getDailyForecast(lat, lon, city);
                     await bot.sendMessage(u.telegram_id, `Selamat pagi! 🌅\nSemoga harimu menyenangkan.\n\n${weatherMsg}`, { parse_mode: 'Markdown' });
-                    console.log(`[Cron] Sent morning weather to ${u.telegram_id}`);
+                    console.log(`[Cron] Sent morning weather to ${u.telegram_id} (${city})`);
                 } catch (e) {
                     console.error(`[Cron] Failed sending weather to ${u.telegram_id}:`, e.message);
                 }

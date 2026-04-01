@@ -31,14 +31,36 @@ console.log('[Bot] Telegram Bot is starting in polling mode...');
 // Initialize Cron Job
 initCronJob(bot);
 
-// Command Handlers
+// ==================== Command Handlers ====================
+
+// Basic
 bot.onText(/\/start/, (msg) => botController.start(bot, msg));
+bot.onText(/\/help/, (msg) => botController.help(bot, msg));
+
+// Tasks
 bot.onText(/\/add (.+)/, (msg, match) => botController.addTask(bot, msg, match));
 bot.onText(/\/list/, (msg) => botController.listTasks(bot, msg));
-bot.onText(/\/finance/, (msg) => botController.financeSummary(bot, msg));
 bot.onText(/\/delete (\d+)/, (msg, match) => botController.deleteTask(bot, msg, match));
 
-// Handling general message text as natural language task adding
+// Finance
+bot.onText(/\/finance$/, (msg) => botController.financeSummary(bot, msg));
+bot.onText(/\/laporan(?:\s+(.+))?$/, (msg, match) => botController.financeReport(bot, msg, match));
+bot.onText(/\/history(?:\s+(\d+))?$/, (msg, match) => botController.financeHistory(bot, msg, match));
+bot.onText(/\/setbudget\s+(.+)/, (msg, match) => botController.setBudget(bot, msg, match));
+
+// Notes
+bot.onText(/\/note\s+(.+)/, (msg, match) => botController.addNote(bot, msg, match));
+bot.onText(/\/notes$/, (msg) => botController.listNotes(bot, msg));
+bot.onText(/\/delnote\s+(\d+)/, (msg, match) => botController.deleteNote(bot, msg, match));
+
+// Weather
+bot.onText(/\/cuaca\s+(.+)/, (msg, match) => botController.weather(bot, msg, match));
+bot.onText(/\/setlokasi\s+(.+)/, (msg, match) => botController.setLocation(bot, msg, match));
+
+// Inline Keyboard Callback
+bot.on('callback_query', (query) => botController.handleCallbackQuery(bot, query));
+
+// General message handler (Natural language)
 bot.on('message', (msg) => botController.handleMessage(bot, msg));
 
 // Handle polling errors
