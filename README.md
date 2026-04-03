@@ -1,6 +1,6 @@
 # 🤖 Personal Assistant Telegram Bot
 
-Bot Telegram **Personal Assistant** berbasis AI yang dapat membantu mencatat tugas, mengelola keuangan, memberikan reminder otomatis, prakiraan cuaca harian, dan menjawab pertanyaan secara natural layaknya ChatGPT — semuanya melalui chat Telegram.
+Bot Telegram **Personal Assistant** berbasis AI yang dapat membantu mencatat tugas, mengelola keuangan, memberikan reminder otomatis, prakiraan cuaca harian, dan menjawab pertanyaan secara natural layaknya ChatGPT — Semuanya melalui chat Telegram.
 
 ---
 
