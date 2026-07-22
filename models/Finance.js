@@ -64,6 +64,14 @@ const Finance = {
             [userId, year, month]
         );
         return rows[0]?.total ? parseFloat(rows[0].total) : 0;
+    },
+
+    async getAllByUserId(userId) {
+        const [rows] = await db.query(
+            'SELECT * FROM finances WHERE user_id = ? ORDER BY created_at DESC',
+            [userId]
+        );
+        return rows;
     }
 };
 

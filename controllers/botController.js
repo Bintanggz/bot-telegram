@@ -6,9 +6,19 @@ const Finance = require('../models/Finance');
 const Note = require('../models/Note');
 const helpers = require('../utils/helpers');
 
+const isUserAllowed = (chatId) => {
+    const allowedId = process.env.ALLOWED_TELEGRAM_ID;
+    if (!allowedId || allowedId.trim() === '') return true;
+    return String(chatId) === String(allowedId.trim());
+};
+
 // ==================== /start ====================
 const start = async (bot, msg) => {
     const chatId = msg.chat.id;
+    if (!isUserAllowed(chatId)) {
+        return bot.sendMessage(chatId, "⛔ Akses ditolak. Bot ini diset dalam mode privat.");
+    }
+
     let user = await User.findByTelegramId(chatId);
     
     if (!user) {
@@ -24,27 +34,29 @@ Ketik jadwalmu dengan santai. Contoh:
 - _"Besok jam 7 pagi ingatkan lari pagi"_
 - _"Ingatkan minum tiap hari jam 10 pagi"_
 
-💰 *2. Catat Pemasukan / Pengeluaran*
+💰 *2. Catat Pemasukan / Pengeluaran & OCR Struk*
 - _"Gajian masuk 5 juta hari ini"_
 - _"Beli bensin 25 ribu"_
+- 🧾 *Foto Struk Belanja:* Kirim foto struk/nota dan AI Gemini Vision akan mencatat pengeluaranmu secara otomatis!
 
-📝 *3. Catatan Cepat*
+📝 *3. Catatan Cepat & Pencarian*
 - \`/note WiFi password: Abcd1234\`
 - \`/notes\` untuk lihat semua catatan
+- \`/searchnote wifi\` cari catatan spesifik
 
 🌤️ *4. Cuaca Harian & Custom*
 - Laporan otomatis setiap jam 06:00
 - \`/cuaca Bandung\` untuk cek kota lain
 - \`/setlokasi Surabaya\` ganti default
 
-📊 *5. Laporan Keuangan*
+📊 *5. Laporan Keuangan & Export*
 - \`/finance\` ringkasan keseluruhan
 - \`/laporan\` laporan bulan ini + kategori
 - \`/history\` riwayat transaksi terakhir
-- \`/setbudget 3000000\` atur batas pengeluaran
+- \`/export\` download data keuangan dalam format file CSV / Excel
 
 💬 *6. AI Konsultan Pribadi*
-Chat nyasar layaknya ChatGPT biasa!
+Chat bebas layaknya ChatGPT biasa!
 
 📋 *Semua Command:*
 /start — Mulai
@@ -53,15 +65,17 @@ Chat nyasar layaknya ChatGPT biasa!
 /finance — Ringkasan keuangan
 /laporan — Laporan bulanan
 /history — Riwayat transaksi
+/export — Export CSV keuangan
 /setbudget — Set budget bulanan
 /note — Simpan catatan
 /notes — Lihat catatan
+/searchnote — Cari catatan
 /delnote — Hapus catatan
 /cuaca — Cek cuaca kota
 /setlokasi — Set lokasi default
 /help — Bantuan
 
-Ketik fitur pilihanmu sekarang 😊`;
+Ketik atau kirimkan foto/pesanmu sekarang 😊`;
 
     bot.sendMessage(chatId, welcomeMessage, { parse_mode: "Markdown" });
 };
@@ -69,25 +83,30 @@ Ketik fitur pilihanmu sekarang 😊`;
 // ==================== /help ====================
 const help = async (bot, msg) => {
     const chatId = msg.chat.id;
+    if (!isUserAllowed(chatId)) {
+        return bot.sendMessage(chatId, "⛔ Akses ditolak. Bot ini diset dalam mode privat.");
+    }
+
     const helpText = `📖 *Panduan Lengkap Bot*
 
 *Tugas & Pengingat:*
 • Ketik langsung: _"Besok jam 8 meeting"_
 • \`/list\` — Lihat daftar tugas
-• \`/delete <id>\` — Hapus tugas (tekan tombol juga bisa!)
+• \`/delete <id>\` — Hapus tugas
 
-*Keuangan:*
+*Keuangan & Struk:*
 • Ketik langsung: _"Beli makan 35rb"_ atau _"Gajian 5jt"_
+• 🧾 *Foto Struk:* Upload foto struk belanja untuk catat otomatis
 • \`/finance\` — Ringkasan total
 • \`/laporan\` — Laporan bulan ini + kategori
-• \`/laporan 3 2026\` — Laporan Maret 2026
 • \`/history\` — 10 transaksi terakhir
-• \`/history 20\` — 20 transaksi terakhir
+• \`/export\` — Download file CSV laporan keuangan
 • \`/setbudget 3000000\` — Set batas pengeluaran
 
 *Catatan:*
 • \`/note WiFi: Abcd1234\` — Simpan catatan
 • \`/notes\` — Lihat semua catatan
+• \`/searchnote wifi\` — Cari catatan
 • \`/delnote <id>\` — Hapus catatan
 
 *Cuaca:*
@@ -608,8 +627,134 @@ const handleCallbackQuery = async (bot, query) => {
     }
 };
 
+// ==================== SEARCH NOTE ====================
+const searchNote = async (bot, msg, match) => {
+    const chatId = msg.chat.id;
+    if (!isUserAllowed(chatId)) {
+        return bot.sendMessage(chatId, "⛔ Akses ditolak. Bot ini diset dalam mode privat.");
+    }
+
+    const keyword = match ? match[1] : null;
+    if (!keyword) {
+        return bot.sendMessage(chatId, "Penggunaan: `/searchnote <kata_kunci>`\nContoh: `/searchnote wifi`", { parse_mode: "Markdown" });
+    }
+
+    try {
+        const user = await User.findByTelegramId(chatId);
+        if (!user) return bot.sendMessage(chatId, "Belum ada catatan apapun.");
+
+        const notes = await Note.searchByKeyword(user.id, keyword.trim());
+        if (!notes || notes.length === 0) {
+            return bot.sendMessage(chatId, `🔍 Tidak ditemukan catatan dengan kata kunci *"${keyword}"*`, { parse_mode: "Markdown" });
+        }
+
+        let message = `🔍 *Hasil Pencarian Catatan ("${keyword}"):*\n\n`;
+        notes.forEach((n) => {
+            message += `📌 *[ID: ${n.id}]* (${helpers.formatShortDate(n.created_at)})\n${n.content}\n\n`;
+        });
+
+        bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
+    } catch (error) {
+        console.error("Search note error:", error);
+        bot.sendMessage(chatId, "Maaf, terjadi kesalahan saat mencari catatan.");
+    }
+};
+
+// ==================== EXPORT FINANCE CSV ====================
+const exportFinanceCSV = async (bot, msg) => {
+    const chatId = msg.chat.id;
+    if (!isUserAllowed(chatId)) {
+        return bot.sendMessage(chatId, "⛔ Akses ditolak. Bot ini diset dalam mode privat.");
+    }
+
+    try {
+        const user = await User.findByTelegramId(chatId);
+        if (!user) return bot.sendMessage(chatId, "Belum ada data keuangan untuk diexport.");
+
+        const finances = await Finance.getAllByUserId(user.id);
+        if (!finances || finances.length === 0) {
+            return bot.sendMessage(chatId, "Belum ada riwayat transaksi keuangan untuk diexport.");
+        }
+
+        let csvContent = "ID,Tipe,Nominal,Kategori,Deskripsi,Tanggal\n";
+        finances.forEach(item => {
+            const desc = `"${(item.description || '').replace(/"/g, '""')}"`;
+            const dateStr = item.created_at ? new Date(item.created_at).toISOString() : '';
+            csvContent += `${item.id},${item.type},${item.amount},${item.category},${desc},${dateStr}\n`;
+        });
+
+        const buffer = Buffer.from(csvContent, 'utf-8');
+        bot.sendDocument(chatId, buffer, {}, {
+            filename: `Laporan_Keuangan_${new Date().toISOString().slice(0, 10)}.csv`,
+            contentType: 'text/csv'
+        });
+    } catch (error) {
+        console.error("Export CSV error:", error);
+        bot.sendMessage(chatId, "Maaf, terjadi kesalahan saat meng-export data keuangan.");
+    }
+};
+
+// ==================== HANDLE PHOTO (OCR STRUK BELANJA) ====================
+const handlePhoto = async (bot, msg) => {
+    const chatId = msg.chat.id;
+    if (!isUserAllowed(chatId)) {
+        return bot.sendMessage(chatId, "⛔ Akses ditolak. Bot ini diset dalam mode privat.");
+    }
+
+    if (!msg.photo || msg.photo.length === 0) return;
+
+    bot.sendMessage(chatId, "🧾 *Menganalisis foto struk/nota belanja dengan AI Gemini Vision...*", { parse_mode: "Markdown" });
+
+    try {
+        const photo = msg.photo[msg.photo.length - 1];
+        const fileStream = bot.getFileStream(photo.file_id);
+        
+        const chunks = [];
+        for await (const chunk of fileStream) {
+            chunks.push(chunk);
+        }
+        const buffer = Buffer.concat(chunks);
+
+        const result = await geminiService.processReceiptImage(buffer, 'image/jpeg');
+
+        if (!result || !result.is_receipt || !result.amount) {
+            return bot.sendMessage(chatId, "🔍 Foto yang Anda kirimkan tampaknya bukan struk/nota belanja, atau total harga tidak terbaca jelas.");
+        }
+
+        let user = await User.findByTelegramId(chatId);
+        if (!user) {
+            const userId = await User.create(chatId);
+            user = { id: userId, telegram_id: chatId };
+        }
+
+        const amount = result.amount;
+        const description = result.description || 'Struk Belanja';
+        const category = result.category || 'belanja';
+
+        await Finance.create(user.id, amount, description, 'expense', category);
+
+        const categoryEmoji = helpers.getCategoryEmoji(category);
+        const formattedAmount = helpers.formatCurrency(amount);
+
+        const responseMsg = `✅ *Struk Belanja Terdeteksi & Dicatat!*\n\n` +
+            `💸 *Pengeluaran:* ${formattedAmount}\n` +
+            `🏷️ *Kategori:* ${categoryEmoji} ${category}\n` +
+            `📝 *Deskripsi:* ${description}`;
+
+        bot.sendMessage(chatId, responseMsg, { parse_mode: "Markdown" });
+    } catch (error) {
+        console.error("Handle photo error:", error);
+        bot.sendMessage(chatId, "Maaf, terjadi kesalahan saat memproses foto struk.");
+    }
+};
+
 // ==================== GENERAL MESSAGE HANDLER ====================
 const handleMessage = async (bot, msg) => {
+    const chatId = msg.chat.id;
+    if (!isUserAllowed(chatId)) {
+        return bot.sendMessage(chatId, "⛔ Akses ditolak. Bot ini diset dalam mode privat.");
+    }
+
     // Ignore commands
     if (msg.text && msg.text.startsWith('/')) return;
     
@@ -639,6 +784,9 @@ module.exports = {
     addNote,
     listNotes,
     deleteNote,
+    searchNote,
+    exportFinanceCSV,
+    handlePhoto,
     weather,
     setLocation,
     handleCallbackQuery

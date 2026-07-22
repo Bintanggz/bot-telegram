@@ -23,6 +23,15 @@ const Note = {
             [id, userId]
         );
         return result.affectedRows > 0;
+    },
+
+    async searchByKeyword(userId, keyword) {
+        const searchPattern = `%${keyword}%`;
+        const [rows] = await db.query(
+            'SELECT * FROM notes WHERE user_id = ? AND content LIKE ? ORDER BY created_at DESC',
+            [userId, searchPattern]
+        );
+        return rows;
     }
 };
 

@@ -6,6 +6,12 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const geminiService = {
     async extractTaskAndDate(text) {
         try {
+            // Hitung waktu saat ini dalam WIB (UTC+7)
+            const now = new Date();
+            const wibOffset = 7 * 60 * 60 * 1000;
+            const wibDate = new Date(now.getTime() + wibOffset);
+            const formattedWib = wibDate.toISOString().slice(0, 19).replace('T', ' ') + ' WIB (UTC+7)';
+
             const prompt = `
 Anda adalah seorang asisten Super AI pintar berbahasa Indonesia bernama Bot Asisten Pribadi.
 Tugas Anda adalah memahami maksud dari teks pesan pengguna dan mengembalikannya HANYA dalam format JSON valid (tanpa blok markdown) berdasarkan kategori tujuan (intent).
@@ -17,7 +23,7 @@ Kategori intent yang ada:
 4. "chat" : Jika pengguna menyapa, curhat, bertanya (seperti resep, berita, dll), atau tidak termasuk task/finance/note (contoh: Hai, tolong resep ayam geprek, cuaca besok).
 
 Pesan Pengguna: "${text}"
-Waktu saat ini (sekarang) adalah: ${new Date().toISOString()}
+Waktu saat ini (WIB/Jakarta) adalah: ${formattedWib}
 
 Kembalikan HANYA format JSON berikut SESUAI dengan intent yang terdeteksi. Kunci utama harus selalu ada:
 {
@@ -44,7 +50,7 @@ Kembalikan HANYA format JSON berikut SESUAI dengan intent yang terdeteksi. Kunci
 }
 
 Peraturan:
-- Asumsi waktu default jadwal adalah 1 jam dari sekarang jika tidak disebut spesifik.
+- Asumsi waktu default jadwal adalah 1 jam dari sekarang jika tidak disebut spesifik. Tulis format datetime dalam WIB.
 - Untuk finance, pastikan konversi nominal dari huruf ke angka (misal 10rb=10000, 5jt=5000000).
 - Untuk finance, tentukan kategori yang paling sesuai dari daftar yang tersedia.
 - Untuk note, tangkap SELURUH informasi yang ingin dicatat pengguna.
@@ -61,13 +67,55 @@ Peraturan:
             });
 
             let content = response.text.trim();
-            // Clean up possible markdown json blocks
             content = content.replace(/```json/g, '').replace(/```/g, '');
             const data = JSON.parse(content);
 
             return data;
         } catch (error) {
             console.error("Gemini Error:", error.message);
+            return null;
+        }
+    },
+
+    async processReceiptImage(imageBuffer, mimeType = 'image/jpeg') {
+        try {
+            const prompt = `
+Anda adalah ahli OCR struk/nota belanja. Analisis foto struk ini dan ekstrak informasi transaksi berikut.
+Kembalikan HANYA format JSON valid tanpa blok markdown:
+{
+  "is_receipt": true/false,
+  "amount": 50000, // Total bayar dalam angka (number)
+  "description": "Nama toko / ringkasan belanja (contoh: Belanja di Indomaret / Bensin Pertamina)",
+  "category": "makan" | "transport" | "belanja" | "hiburan" | "tagihan" | "kesehatan" | "pendidikan" | "lainnya"
+}
+
+Jika gambar bukan struk/nota belanja, set is_receipt ke false dan amount ke 0.
+            `;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: [
+                    {
+                        inlineData: {
+                            data: imageBuffer.toString('base64'),
+                            mimeType: mimeType
+                        }
+                    },
+                    prompt
+                ],
+                config: {
+                    temperature: 0.1,
+                    responseMimeType: "application/json"
+                }
+            });
+
+            let content = response.text.trim();
+            content = content.replace(/```json/g, '').replace(/```/g, '');
+            const data = JSON.parse(content);
+
+            return data;
+        } catch (error) {
+            console.error("Gemini OCR Error:", error.message);
             return null;
         }
     }

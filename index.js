@@ -46,16 +46,21 @@ bot.onText(/\/delete (\d+)/, (msg, match) => botController.deleteTask(bot, msg, 
 bot.onText(/\/finance$/, (msg) => botController.financeSummary(bot, msg));
 bot.onText(/\/laporan(?:\s+(.+))?$/, (msg, match) => botController.financeReport(bot, msg, match));
 bot.onText(/\/history(?:\s+(\d+))?$/, (msg, match) => botController.financeHistory(bot, msg, match));
+bot.onText(/\/export$/, (msg) => botController.exportFinanceCSV(bot, msg));
 bot.onText(/\/setbudget\s+(.+)/, (msg, match) => botController.setBudget(bot, msg, match));
 
 // Notes
 bot.onText(/\/note\s+(.+)/, (msg, match) => botController.addNote(bot, msg, match));
 bot.onText(/\/notes$/, (msg) => botController.listNotes(bot, msg));
+bot.onText(/\/searchnote\s+(.+)/, (msg, match) => botController.searchNote(bot, msg, match));
 bot.onText(/\/delnote\s+(\d+)/, (msg, match) => botController.deleteNote(bot, msg, match));
 
 // Weather
 bot.onText(/\/cuaca\s+(.+)/, (msg, match) => botController.weather(bot, msg, match));
 bot.onText(/\/setlokasi\s+(.+)/, (msg, match) => botController.setLocation(bot, msg, match));
+
+// Photo Handler (Struk Belanja OCR)
+bot.on('photo', (msg) => botController.handlePhoto(bot, msg));
 
 // Inline Keyboard Callback
 bot.on('callback_query', (query) => botController.handleCallbackQuery(bot, query));
