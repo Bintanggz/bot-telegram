@@ -25,8 +25,8 @@ app.use('/', routes);
 app.post('/api/webhook', async (req, res) => {
     try {
         await bot.processUpdate(req.body);
-        // Berikan waktu 1.5 detik agar promise sendMessage selesai sebelum Vercel membekukan Serverless Lambda
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Jeda singkat 300ms (dioptimalkan agar respon jauh lebih cepat)
+        await new Promise(resolve => setTimeout(resolve, 300));
     } catch (error) {
         console.error('[Webhook Error]', error.message);
     }
