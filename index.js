@@ -1,22 +1,12 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const express = require('express');
-const { initCronJob } = require('./services/cronService');
+const { initCronJob, checkTasksAndNotify, sendMorningBriefing } = require('./services/cronService');
 const botController = require('./controllers/botController');
 const routes = require('./routes/index');
 
-// Setup Express (Opsional untuk web server / keep alive)
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-app.use(express.json());
-app.use('/', routes);
-
-app.listen(PORT, () => {
-    console.log(`[Express] Server is running on port ${PORT}`);
-});
-
-// Setup Telegram Bot
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!token) {
@@ -24,12 +14,37 @@ if (!token) {
     process.exit(1);
 }
 
-const bot = new TelegramBot(token, { polling: true });
+// Support both Webhook (Vercel) and Polling (Local)
+const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_ENV);
+const bot = new TelegramBot(token, { polling: !isVercel });
 
-console.log('[Bot] Telegram Bot is starting in polling mode...');
+app.use(express.json());
+app.use('/', routes);
 
-// Initialize Cron Job
-initCronJob(bot);
+// Endpoint Webhook khusus Vercel
+app.post('/api/webhook', (req, res) => {
+    bot.processUpdate(req.body);
+    res.status(200).json({ status: 'ok' });
+});
+
+// Endpoint Cron khusus Vercel / Cron Pinger
+app.get('/api/cron/check-tasks', async (req, res) => {
+    const count = await checkTasksAndNotify(bot);
+    res.json({ status: 'ok', processed_tasks: count });
+});
+
+app.get('/api/cron/morning-briefing', async (req, res) => {
+    const count = await sendMorningBriefing(bot);
+    res.json({ status: 'ok', notified_users: count });
+});
+
+if (!isVercel) {
+    console.log('[Bot] Telegram Bot is starting in polling mode...');
+    initCronJob(bot);
+    app.listen(PORT, () => {
+        console.log(`[Express] Server is running on port ${PORT}`);
+    });
+}
 
 // ==================== Command Handlers ====================
 
@@ -69,4 +84,8 @@ bot.on('callback_query', (query) => botController.handleCallbackQuery(bot, query
 bot.on('message', (msg) => botController.handleMessage(bot, msg));
 
 // Handle polling errors
-bot.on("polling_error", (error) => console.log('Polling Error:', error));
+if (!isVercel) {
+    bot.on("polling_error", (error) => console.log('Polling Error:', error));
+}
+
+module.exports = app;
