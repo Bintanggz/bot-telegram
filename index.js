@@ -21,14 +21,44 @@ const bot = new TelegramBot(token, { polling: !isVercel });
 app.use(express.json());
 app.use('/', routes);
 
+// Helper untuk Vercel Webhook agar semua handler async ditunggu (await) sebelum HTTP response selesai
+const processWebhookUpdate = async (bot, update) => {
+    if (update.message) {
+        const msg = update.message;
+        if (msg.text) {
+            const text = msg.text.trim();
+            if (text === '/start') return await botController.start(bot, msg);
+            if (text === '/help') return await botController.help(bot, msg);
+            if (text.startsWith('/add ')) return await botController.addTask(bot, msg, text.match(/\/add (.+)/));
+            if (text === '/list') return await botController.listTasks(bot, msg);
+            if (text.startsWith('/delete ')) return await botController.deleteTask(bot, msg, text.match(/\/delete (\d+)/));
+            if (text === '/finance') return await botController.financeSummary(bot, msg);
+            if (text.startsWith('/laporan')) return await botController.financeReport(bot, msg, text.match(/\/laporan(?:\s+(.+))?/));
+            if (text.startsWith('/history')) return await botController.financeHistory(bot, msg, text.match(/\/history(?:\s+(\d+))?/));
+            if (text === '/export') return await botController.exportFinanceCSV(bot, msg);
+            if (text.startsWith('/setbudget ')) return await botController.setBudget(bot, msg, text.match(/\/setbudget\s+(.+)/));
+            if (text.startsWith('/note ')) return await botController.addNote(bot, msg, text.match(/\/note\s+(.+)/));
+            if (text === '/notes') return await botController.listNotes(bot, msg);
+            if (text.startsWith('/searchnote ')) return await botController.searchNote(bot, msg, text.match(/\/searchnote\s+(.+)/));
+            if (text.startsWith('/delnote ')) return await botController.deleteNote(bot, msg, text.match(/\/delnote\s+(\d+)/));
+            if (text.startsWith('/cuaca ')) return await botController.weather(bot, msg, text.match(/\/cuaca\s+(.+)/));
+            if (text.startsWith('/setlokasi ')) return await botController.setLocation(bot, msg, text.match(/\/setlokasi\s+(.+)/));
+            if (!text.startsWith('/')) return await botController.handleMessage(bot, msg);
+        } else if (msg.photo) {
+            return await botController.handlePhoto(bot, msg);
+        }
+    } else if (update.callback_query) {
+        return await botController.handleCallbackQuery(bot, update.callback_query);
+    }
+    return await bot.processUpdate(update);
+};
+
 // Endpoint Webhook khusus Vercel
 app.post('/api/webhook', async (req, res) => {
     try {
-        await bot.processUpdate(req.body);
-        // Jeda singkat 300ms (dioptimalkan agar respon jauh lebih cepat)
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await processWebhookUpdate(bot, req.body);
     } catch (error) {
-        console.error('[Webhook Error]', error.message);
+        console.error('[Webhook Error]', error);
     }
     res.status(200).json({ status: 'ok' });
 });

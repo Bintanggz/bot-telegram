@@ -56,9 +56,9 @@ Peraturan:
 - Untuk note, tangkap SELURUH informasi yang ingin dicatat pengguna.
             `;
 
-            // Call Gemini 2.5 Flash model
+            // Call Gemini 1.5 Flash model
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-1.5-flash',
                 contents: prompt,
                 config: {
                     temperature: 0.1,
@@ -93,7 +93,7 @@ Jika gambar bukan struk/nota belanja, set is_receipt ke false dan amount ke 0.
             `;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-1.5-flash',
                 contents: [
                     {
                         inlineData: {
