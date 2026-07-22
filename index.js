@@ -22,8 +22,14 @@ app.use(express.json());
 app.use('/', routes);
 
 // Endpoint Webhook khusus Vercel
-app.post('/api/webhook', (req, res) => {
-    bot.processUpdate(req.body);
+app.post('/api/webhook', async (req, res) => {
+    try {
+        await bot.processUpdate(req.body);
+        // Berikan waktu 1.5 detik agar promise sendMessage selesai sebelum Vercel membekukan Serverless Lambda
+        await new Promise(resolve => setTimeout(resolve, 1500));
+    } catch (error) {
+        console.error('[Webhook Error]', error.message);
+    }
     res.status(200).json({ status: 'ok' });
 });
 
