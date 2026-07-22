@@ -19,13 +19,14 @@ const start = async (bot, msg) => {
         return bot.sendMessage(chatId, "⛔ Akses ditolak. Bot ini diset dalam mode privat.");
     }
 
-    let user = await User.findByTelegramId(chatId);
-    
-    if (!user) {
-        await User.create(chatId);
-    }
-    
-    const welcomeMessage = `Halo! 👋 Aku adalah Bot Super Assistant Pribadimu.
+    try {
+        let user = await User.findByTelegramId(chatId);
+        
+        if (!user) {
+            await User.create(chatId);
+        }
+        
+        const welcomeMessage = `Halo! 👋 Aku adalah Bot Super Assistant Pribadimu.
 
 Aku dilengkapi dengan kecerdasan buatan (AI) dan punya banyak fitur untuk membantumu:
 
@@ -77,7 +78,11 @@ Chat bebas layaknya ChatGPT biasa!
 
 Ketik atau kirimkan foto/pesanmu sekarang 😊`;
 
-    bot.sendMessage(chatId, welcomeMessage, { parse_mode: "Markdown" });
+        bot.sendMessage(chatId, welcomeMessage, { parse_mode: "Markdown" });
+    } catch (error) {
+        console.error("Start command error:", error);
+        bot.sendMessage(chatId, `⚠️ Terjadi kendala sistem/database: ${error.message}`);
+    }
 };
 
 // ==================== /help ====================
