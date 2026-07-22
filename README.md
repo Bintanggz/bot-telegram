@@ -5,7 +5,6 @@ Bot Telegram **Personal Assistant** berbasis AI yang dapat membantu mencatat tug
 ---
 
 ## 📑 Daftar Isi
-
 - [Fitur Utama](#-fitur-utama)
 - [Arsitektur Proyek](#-arsitektur-proyek)
 - [Tech Stack](#-tech-stack)
